@@ -1,5 +1,7 @@
 package org.example;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.*;
 import java.io.*;
 import java.util.HashMap;
@@ -15,7 +17,8 @@ public class HttpServer {
     public static void main(String[] args) {
         try {
             HttpServer.start();
-        } catch (IOException e) {
+        } catch (IOException | ClassNotFoundException | NoSuchMethodException | InvocationTargetException |
+                 IllegalAccessException e) {
             throw new RuntimeException(e);
         }
     }
@@ -25,7 +28,7 @@ public class HttpServer {
      *
      * @throws IOException Si ocurre un error al configurar o aceptar conexiones.
      */
-    public static void start() throws IOException {
+    public static void start() throws IOException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 
         ServerSocket serverSocket = null;
         try {
@@ -68,9 +71,18 @@ public class HttpServer {
                 outputLine = getForm();
             } else {
                 if (uriString.split("\\?")[0].equals("/consulta")) {
-                    responseBody = uriString.split("=")[1];
-                    System.out.println(responseBody.replaceAll("20%", " "));
-                    System.out.println(java.lang.System.getenv());
+                    String line = uriString.split("=")[1];
+                    String method = line.split("\\(")[0];
+                    if(method.equals("Class")){
+                        responseBody = classMethod(line);
+                    }else if(method.equals("invoke")){
+                        responseBody = invokeMethod(line);
+                    }
+                    else if(method.equals("unaryInvoke")){
+                        responseBody = unaryInvokeMethod(line);
+                    }else{
+                        responseBody = "Método invalido";
+                    }
                     outputLine = getLine(responseBody);
                 } else {
                     outputLine = getIndexResponse();
@@ -123,7 +135,7 @@ public class HttpServer {
                 "        <h1>Reflective ChatGPT</h1>\n" +
                 "        <form action=\"/hello\">\n" +
                 "            <label for=\"name\">Ingrese Método:</label><br>\n" +
-                "            <input type=\"text\" id=\"name\" name=\"name\" value=\"binaryInvoke(java.lang.Math, max, double, 4.5, double, -3.7)\"><br><br>\n" +
+                "            <input type=\"text\" id=\"name\" name=\"name\" value=\"Class(java.lang.String)\"><br><br>\n" +
                 "            <input type=\"button\" value=\"Enviar\" onclick=\"loadGetMsg()\">\n" +
                 "        </form> \n" +
                 "        <div id=\"getrespmsg\"></div>\n" +
@@ -150,6 +162,35 @@ public class HttpServer {
                 "    </body>\n" +
                 "</html>";
     }
+
+
+    private static String classMethod(String line) throws ClassNotFoundException {
+        StringBuilder response = new StringBuilder();
+        Class c = Class.forName(line.split("\\(")[1].replaceAll("\\)",""));
+        for (Method m:
+        c.getMethods()) {
+            response.append(m.toString()).append("\r\n").append("\n");
+        }
+        return response.toString();
+    }
+
+    private static String invokeMethod(String line) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        Class c = Class.forName(line.split("\\(")[1].split(",")[0]);
+        return c.getMethod(line.split("\\(")[1].split(",")[1].replace("%20","").replaceAll("\\)","")).invoke(c.getClass()).toString();
+    }
+
+    private static String unaryInvokeMethod(String line) throws NoSuchMethodException, ClassNotFoundException, InvocationTargetException, IllegalAccessException {
+        Class c = Class.forName(line.split("\\(")[1].split(",")[0]);
+        if(line.split("\\(")[1].split(",")[2].replace("%20","").equals("int")){
+            Integer n = Integer.parseInt(line.split("\\(")[1].split(",")[3].replace("%20","").replaceAll("\\)",""));
+            System.out.println(n);
+            System.out.println(c.getMethod(line.split("\\(")[1].split(",")[1].replace("%20",""), n.getClass()));
+        }else if(line.split("\\(")[1].split(",")[2].replace("%20","").equals("float")){
+            System.out.println();
+        }
+        return "";
+    }
+
 
     public static String getLine(String responseBody) {
         return "HTTP/1.1 200 OK \r\n"
