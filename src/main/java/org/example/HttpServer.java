@@ -65,12 +65,12 @@ public class HttpServer {
             System.out.println("URI: " + uriString);
             String responseBody = "";
             if (uriString != null && uriString.equals("/")) {
-
                 outputLine = getForm();
             } else {
                 if (uriString.split("\\?")[0].equals("/consulta")) {
                     responseBody = uriString.split("=")[1];
                     System.out.println(responseBody.replaceAll("20%", " "));
+                    System.out.println(java.lang.System.getenv());
                     outputLine = getLine(responseBody);
                 } else {
                     outputLine = getIndexResponse();
